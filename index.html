@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>三相交流绕组展开图 · U 相</title>
+  <style>
+    :root { color-scheme: light; font-family: "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", sans-serif; color: #192c44; background: #e9eef4; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { width: min(100%, 1600px); margin: auto; }
+    #drawing { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+    .controls { display: flex; align-items: center; gap: 14px; padding: 13px 24px; background: #fff; border-top: 1px solid #d9e1ec; }
+    button { padding: 7px 14px; border-radius: 7px; border: 1px solid #becbdb; color: inherit; background: #f6f8fb; font: inherit; cursor: pointer; }
+    input { flex: 1; min-width: 55px; accent-color: #355979; }
+    output { min-width: 103px; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .capture .controls { display: none; }
+  </style>
+</head>
+<body>
+<main>
+  <svg id="drawing" xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" fill="#192c44" role="img" aria-labelledby="diagram-title diagram-desc">
+    <title id="diagram-title">三相交流绕组展开图 · U 相</title>
+    <desc id="diagram-desc">24 槽四极双层短距绕组。第一支路按 C1、C2、反向 C4、反向 C3 串联。第二支路按 C5、C6、反向 C8、反向 C7 串联。两支路共同接至 U1 和 U2。</desc>
+    <style>
+      text { font-family: "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", sans-serif; }
+      .mono { font-family: Consolas, "IBM Plex Mono", monospace; }
+      .title { font-size: 50px; font-weight: 700; }
+      .kicker { font-size: 18px; font-weight: 700; letter-spacing: 2px; fill: #49647d; }
+      .label { font-size: 18px; fill: #435b74; }
+      .small { font-size: 16px; fill: #435b74; }
+      .num { font-size: 20px; font-weight: 700; }
+      .caption-title { font-size: 32px; font-weight: 700; }
+      .caption { font-size: 20px; fill: #435b74; }
+      .panel-title { font-size: 24px; font-weight: 700; }
+      .stats { font-size: 26px; font-weight: 700; }
+      .tag { font-size: 16px; font-weight: 700; }
+      .white { fill: #fff; }
+    </style>
+    <defs>
+      <pattern id="paper-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+        <path d="M24 0H0V24" fill="none" stroke="#dce5ef" stroke-width="1" opacity=".42"/>
+      </pattern>
+    </defs>
+    <rect width="1600" height="900" fill="#f0f4f8"/>
+    <rect width="1600" height="900" fill="url(#paper-grid)"/>
+    <path d="M64 27H102" stroke="#ba4c2d" stroke-width="4"/>
+    <text x="119" y="34" class="kicker">三相交流绕组 / 双层短距</text>
+    <text x="62" y="93" class="title">U 相绕组展开图</text>
+    <rect x="64" y="115" width="1472" height="58" rx="10" fill="#20374f"/>
+    <g id="stats"/>
+    <rect x="64" y="191" width="1472" height="452" rx="15" fill="#fff" stroke="#d0dce9"/>
+    <text x="90" y="228" class="panel-title">定子 24 槽展开</text>
+    <g id="legend" class="small">
+      <path d="M855 221h27" stroke="#344e68" stroke-width="4" stroke-linecap="round"/>
+      <text x="892" y="227">上层边</text>
+      <path d="M979 221h28" stroke="#344e68" stroke-width="4" stroke-dasharray="6 5" stroke-linecap="round"/>
+      <text x="1017" y="227">下层边</text>
+      <circle cx="1134" cy="221" r="5" fill="#344e68"/>
+      <text x="1148" y="227">接点</text>
+      <path d="M1231 213v4m0 8v4m-8-8h16" stroke="#344e68" stroke-width="2"/>
+      <text x="1248" y="227">跨线无接点</text>
+      <text x="1510" y="227" text-anchor="end">箭头为参考方向</text>
+    </g>
+    <g id="poles"/>
+    <g id="slots"/>
+    <g id="wires"/>
+    <g id="coils"/>
+    <g id="marks"/>
+    <rect x="64" y="663" width="1472" height="155" rx="15" fill="#fff" stroke="#d0dce9"/>
+    <path d="M698 684V797" stroke="#dbe4ed"/>
+    <text id="step-label" x="90" y="694" class="kicker"/>
+    <text id="caption-title" x="90" y="738" class="caption-title"/>
+    <text id="caption-first" x="91" y="772" class="caption"/>
+    <text id="caption-second" x="91" y="801" class="caption"/>
+    <g id="notes"/>
+    <g id="timeline"/>
+  </svg>
+  <div class="controls" aria-label="播放控制">
+    <button id="toggle" type="button">播放</button>
+    <button id="previous" type="button">上一步</button>
+    <button id="next" type="button">下一步</button>
+    <input id="seek" type="range" min="0" max="52" step="0.01" value="0" aria-label="播放进度">
+    <output id="clock" for="seek">00:00 / 00:52</output>
+  </div>
+</main>
+<script>
+  const Z = 24;
+  const p = 2;
+  const pitch = 5;
+  const parallel = 2;
+  const polePitch = Z / (2 * p);
+  const slotsPerPolePhase = polePitch / 3;
+  const duration = 52;
+  const ink = '#273f59';
+  const branchColors = ['#b74828', '#00776f'];
+  const branchTints = ['#fbede6', '#e5f3f0'];
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const byId = id => document.getElementById(id);
+  const slotX = slot => 174 + 56 * (slot - 1);
+  const wrap = slot => ((slot - 1) % Z + Z) % Z + 1;
+  const slotAngle = 360 * p / Z;
+
+  // S 与 F 分别是每个线圈的约定首、末端，都在展开图下方引出。
+  const groups = Array.from({ length: 2 * p }, (_, index) => ({
+    id: index + 1,
+    firstSlot: index * polePitch + 1,
+    direction: index % 2 ? -1 : 1,
+    branch: Math.floor(index / 2)
+  }));
+  for (const group of groups) {
+    group.coils = Array.from({ length: slotsPerPolePhase }, (_, index) => {
+      const upper = group.firstSlot + index;
+      const lower = wrap(upper + pitch);
+      return {
+        id: (group.id - 1) * slotsPerPolePhase + index + 1,
+        group: group.id, branch: group.branch, direction: group.direction,
+        upper, lower, crossesSeam: lower < upper, s: slotX(upper) - 8, f: slotX(lower) + 8,
+        turnY: 337 + index * 16
+      };
+    });
+  }
+  const coils = groups.flatMap(group => group.coils);
+  const branches = Array.from({ length: parallel }, (_, index) => {
+    const [forward, reverse] = groups.slice(2 * index, 2 * index + 2);
+    return [...forward.coils, ...reverse.coils.toReversed()];
+  });
+  const scenes = [
+    { at: 0, name: '分槽分组', title: '找出 U 相的上层边', first: '四个极区依次占 6 槽。', second: '每个极区取前两槽，正负相带交替。' },
+    { at: 6, name: '短距线圈', title: '每个线圈跨 5 个槽距', first: '从上层边起，沿槽号增大方向数 5 槽距。', second: '例：1 槽上层配 6 槽下层。' },
+    { at: 15, name: '同极串联', title: '同极线圈末接首', first: '每个线圈组有两个线圈。', second: '以 G1 为例，C1 末端接 C2 首端。' },
+    { at: 24, name: '邻极反接', title: '相邻极下的线圈组反接', first: '相邻组跨 180° 电角度，感应电势反相。', second: '两组末端相接，后一组反向通过，电势相加。' },
+    { at: 34, name: '两路并联', title: '两条支路接到同一对端子', first: '同名端汇接到 U1 和 U2。', second: '沿箭头从 U1 追踪，两条路径均到达 U2。' },
+    { at: 44, name: '接线核对', title: '两条支路基波电势同相等幅', first: '对应线圈等匝，节距和串接方向相同。', second: '两支路相隔 12 槽，即 360° 电角度。' }
+  ];
+
+  function el(parent, tag, attributes = {}, content) {
+    const node = document.createElementNS(svgNS, tag);
+    for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+    if (content !== undefined) node.textContent = content;
+    parent.append(node);
+    return node;
+  }
+  function line(parent, d, color, width, attributes = {}) {
+    return el(parent, 'path', { d, stroke: color, 'stroke-width': width, 'stroke-linecap': 'round',
+      'stroke-linejoin': 'round', fill: 'none', ...attributes });
+  }
+  function label(parent, x, y, content, attributes = {}) {
+    return el(parent, 'text', { x, y, ...attributes }, content);
+  }
+  function box(parent, x, y, width, height, fill, attributes = {}) {
+    return el(parent, 'rect', { x, y, width, height, fill, ...attributes });
+  }
+  function dot(parent, cx, cy, r, fill, attributes = {}) {
+    return el(parent, 'circle', { cx, cy, r, fill, ...attributes });
+  }
+  function center(parent, x, y, content, attributes = {}) {
+    return label(parent, x, y, content, { 'text-anchor': 'middle', ...attributes });
+  }
+  function opacity(node, value) {
+    node.setAttribute('opacity', value.toFixed(3));
+  }
+  function clamp(value) {
+    return Math.max(0, Math.min(1, value));
+  }
+  function reveal(time, at, span = .45) {
+    const progress = clamp((time - at) / span);
+    return progress * (2 - progress);
+  }
+
+  for (const [index, [formula, unit]] of [
+    ['Z = 24', '定子槽数'], ['p = 2', '2p = 4 极'], ['y₁ = 5', '线圈节距'], ['a = 2', '每相并联支路']
+  ].entries()) {
+    const x = 92 + index * 365;
+    label(byId('stats'), x, 153, formula, { class: 'mono stats white' });
+    label(byId('stats'), x + 123, 153, unit, { class: 'label white' });
+    if (index < 3) line(byId('stats'), `M${x + 337} 129v30`, '#526a83', 1);
+  }
+
+  for (const group of groups) {
+    const left = slotX(group.firstSlot) - 28;
+    const pole = box(byId('poles'), left + 2, 247, 332, 31, group.id % 2 ? '#e9eff6' : '#f0f4f8', { rx: 6 });
+    el(pole, 'title', {}, `第 ${group.id} 极区，槽 ${group.firstSlot} 至 ${group.firstSlot + 5}`);
+    center(byId('poles'), left + 168, 269, `极区 ${group.id}  ·  G${group.id} / U${group.direction === 1 ? '+' : '−'}`, { class: 'label' });
+  }
+
+  box(byId('slots'), 145, 381, 1346, 105, '#eef3f8', { rx: 5 });
+  line(byId('slots'), 'M145 381H1491M145 486H1491', '#97aec4', 1.6);
+  const slotHighlights = [];
+  for (let slot = 1; slot <= Z; slot++) {
+    const x = slotX(slot);
+    if (slot > 1) {
+      const poleBoundary = (slot - 1) % polePitch === 0;
+      line(byId('slots'), `M${x - 28} 284V486`, poleBoundary ? '#a5b7ca' : '#d8e2ed', poleBoundary ? 1.5 : 1,
+        { 'stroke-dasharray': poleBoundary ? '4 5' : '2 6' });
+    }
+    line(byId('slots'), `M${x} 390v87`, '#c6d4e2', 1, { 'stroke-dasharray': '2 5' });
+    const coil = coils.find(candidate => candidate.upper === slot);
+    if (coil) {
+      const highlight = el(byId('slots'), 'g');
+      box(highlight, x - 21, 286, 42, 31, branchTints[coil.branch], { rx: 6 });
+      box(highlight, x - 20, 383, 20, 101, branchTints[coil.branch], { rx: 4 });
+      slotHighlights.push({ node: highlight, group: coil.group });
+    }
+    center(byId('slots'), x, 308, slot, { class: 'mono num' });
+  }
+  label(byId('slots'), 90, 308, '槽号', { class: 'small' });
+  label(byId('slots'), 90, 439, '铁心', { class: 'small' });
+
+  // 每根跨接线有白色衬线，让几何交叉与有圆点的接点清楚可辨。
+  function wire(parent, d, color, width = 4.5, attributes = {}) {
+    const node = el(parent, 'g');
+    line(node, d, '#fff', width + 7, attributes);
+    line(node, d, color, width, attributes);
+    return node;
+  }
+  function jumper(from, to, y, color, parent = byId('wires')) {
+    return wire(parent, `M${from} 486V${y}H${to}V486`, color);
+  }
+
+  const terminals = el(byId('wires'), 'g');
+  const secondInput = branches[1][0].s;
+  const secondOutput = branches[1].at(-1).s;
+  const firstInput = branches[0][0].s;
+  const firstOutput = branches[0].at(-1).s;
+  wire(terminals, `M100 566H${secondInput}`, ink, 4.5);
+  wire(terminals, `M${firstOutput} 600H1500`, ink, 4.5);
+  wire(terminals, `M${firstInput} 566V486`, branchColors[0]);
+  wire(terminals, `M${secondInput} 566V486`, branchColors[1]);
+  wire(terminals, `M${firstOutput} 486V600`, branchColors[0]);
+  wire(terminals, `M${secondOutput} 486V600`, branchColors[1]);
+  for (const [x, y] of [[firstInput, 566], [secondInput, 566], [firstOutput, 600], [secondOutput, 600]]) {
+    dot(terminals, x, y, 6, ink);
+  }
+  for (const [x, y, name, anchor] of [[100, 566, 'U1', 'start'], [1500, 600, 'U2', 'end']]) {
+    dot(terminals, x, y, 7, '#fff', { stroke: ink, 'stroke-width': 3 });
+    label(terminals, x, y + 28, name, { class: 'mono num', 'text-anchor': anchor });
+  }
+
+  const internalY = 513;
+  const reversedY = 541;
+  const seamLeft = 137;
+  const seamRight = 1499;
+  function groupLink(to, acrossSeam) {
+    if (acrossSeam) return `V${reversedY}H${seamRight}M${seamLeft} ${reversedY}H${to}V486`;
+    return `V${reversedY}H${to}V486`;
+  }
+  const internalWires = groups.map(group => jumper(group.coils[0].f, group.coils[1].s, internalY, branchColors[group.branch]));
+  const reversedWires = branches.map(([first, exit, entry]) => wire(byId('wires'),
+    `M${exit.f} 486${groupLink(entry.f, entry.crossesSeam)}`, branchColors[first.branch]));
+
+  function coilTurn(coil, from, to) {
+    const { turnY: y } = coil;
+    if (coil.crossesSeam) {
+      const forward = from === coil.s;
+      const [exit, entry, bend] = forward ? [seamRight, seamLeft, 17] : [seamLeft, seamRight, -17];
+      return `V${y + 17}Q${from} ${y} ${from + bend} ${y}H${exit}M${entry} ${y}H${to - bend}Q${to} ${y} ${to} ${y + 17}`;
+    }
+    const bend = Math.sign(to - from) * 17;
+    return `V${y + 17}Q${from} ${y} ${from + bend} ${y}H${to - bend}Q${to} ${y} ${to} ${y + 17}`;
+  }
+
+  const coilGeometry = coils.map(coil => {
+    const { s, f } = coil;
+    const color = branchColors[coil.branch];
+    const shape = el(byId('coils'), 'g');
+    const title = `C${coil.id} · 首端 S${coil.id} 在 ${coil.upper} 槽上层，末端 F${coil.id} 在 ${coil.lower} 槽下层`;
+    el(shape, 'title', {}, title);
+    const turn = `M${s} 381${coilTurn(coil, s, f)}V381`;
+    wire(shape, turn, color, 4.5);
+    line(shape, `M${s} 381V486`, color, 4.5);
+    line(shape, `M${f} 381V486`, color, 4.5, { 'stroke-dasharray': '7 6' });
+    dot(shape, s, 486, 4.1, color);
+    dot(shape, f, 486, 4.1, color);
+
+    const arrows = el(byId('marks'), 'g');
+    for (const [x, down] of [[s, coil.direction < 0], [f, coil.direction > 0]]) {
+      const tip = down ? 452 : 417;
+      const base = down ? 437 : 432;
+      el(arrows, 'path', { d: `M${x} ${tip}l-7 ${base - tip}h14Z`, fill: color, stroke: '#fff', 'stroke-width': 1.2 });
+    }
+    return { shape, arrows };
+  });
+
+  const span = el(byId('marks'), 'g');
+  const spanStart = slotX(coils[0].upper);
+  const spanEnd = slotX(coils[0].lower);
+  line(span, `M${spanStart} 332v-10H${spanEnd}v10`, '#385b80', 1.8);
+  box(span, (spanStart + spanEnd) / 2 - 53, 312, 106, 21, '#fff', { rx: 4 });
+  center(span, (spanStart + spanEnd) / 2, 328, '5 个槽距', { class: 'small' });
+
+  function seamMarks(y, symbol, caption, x) {
+    const node = el(byId('marks'), 'g');
+    for (const X of [seamLeft, seamRight]) {
+      dot(node, X, y, 10, '#e5f3f0', { stroke: branchColors[1], 'stroke-width': 1.6 });
+      center(node, X, y + 4.5, symbol, { class: 'mono', 'font-size': 14, 'font-weight': 700, fill: branchColors[1] });
+    }
+    label(node, x, 625, caption, { class: 'small' });
+    return node;
+  }
+  const wrappedCoil = coils.find(coil => coil.crossesSeam);
+  const coilSeam = seamMarks(wrappedCoil.turnY, 'A', 'A ↔ A   C8 跨 24 / 1 槽接缝', 255);
+  const wireSeam = seamMarks(reversedY, 'B', 'B ↔ B   F6 与 F8 跨接缝相连', 590);
+  const firstSeriesEnds = el(byId('marks'), 'g');
+  label(firstSeriesEnds, coils[1].s - 12, 505, 'S2', { class: 'mono tag', fill: branchColors[0], 'text-anchor': 'end' });
+  label(firstSeriesEnds, coils[0].f + 12, 505, 'F1', { class: 'mono tag', fill: branchColors[0] });
+
+  const tracers = branches.map((branch, index) => {
+    const start = coil => coil.direction > 0 ? coil.s : coil.f;
+    const finish = coil => coil.direction > 0 ? coil.f : coil.s;
+    let d = `M100 566H${start(branch[0])}V486`;
+    branch.forEach((coil, order) => {
+      d += `${coilTurn(coil, start(coil), finish(coil))}V486`;
+      const nextCoil = branch[order + 1];
+      if (!nextCoil) return;
+      const target = start(nextCoil);
+      d += order === 1 ? groupLink(target, nextCoil.crossesSeam) : `V${internalY}H${target}V486`;
+    });
+    const track = line(byId('marks'), `${d}V600H1500`, 'none', 0);
+    const marker = dot(byId('marks'), 100, 566, 7, branchColors[index], { stroke: '#fff', 'stroke-width': 2.5 });
+    return { track, length: track.getTotalLength(), marker };
+  });
+
+  function chip(parent, x, y, width, content, background, color, fontSize = 18) {
+    box(parent, x, y, width, 34, background, { rx: 7 });
+    center(parent, x + width / 2, y + 23, content, { 'font-size': fontSize, fill: color });
+  }
+  const noteSets = scenes.map(() => el(byId('notes'), 'g'));
+  const techLabel = (parent, value) => label(parent, 728, 698, value, { class: 'kicker' });
+  techLabel(noteSets[0], '槽距计算');
+  label(noteSets[0], 728, 742, '极距  τ = Z / (2p) = 6 槽距', { class: 'panel-title' });
+  label(noteSets[0], 728, 782, '每极每相槽数  q = Z / (2p × 3) = 2', { class: 'panel-title' });
+
+  techLabel(noteSets[1], '线圈编号及槽位（上层 → 下层）');
+  for (const group of groups) {
+    const x = 728 + 195 * (group.id - 1);
+    label(noteSets[1], x, 736, `G${group.id}`, { class: 'mono num', fill: branchColors[group.branch] });
+    group.coils.forEach((coil, index) => chip(noteSets[1], x + 91 * index, 749, 86,
+      `C${coil.id}  ${coil.upper}→${coil.lower}`, branchTints[group.branch], branchColors[group.branch], 15));
+  }
+
+  techLabel(noteSets[2], '组内跨接（F 为末端，S 为首端）');
+  for (const group of groups) {
+    const x = 728 + 195 * (group.id - 1);
+    label(noteSets[2], x, 736, `G${group.id}`, { class: 'mono num', fill: branchColors[group.branch] });
+    chip(noteSets[2], x, 749, 174, `F${group.coils[0].id} — S${group.coils[1].id}`, branchTints[group.branch], branchColors[group.branch]);
+  }
+  techLabel(noteSets[3], '组间跨接');
+  chip(noteSets[3], 728, 713, 212, 'G1 / G2   F2 — F4', branchTints[0], branchColors[0]);
+  chip(noteSets[3], 956, 713, 212, 'G3 / G4   F6 — F8', branchTints[1], branchColors[1]);
+  label(noteSets[3], 728, 782, 'S 为线圈首端，F 为线圈末端。', { class: 'caption' });
+
+  const branchRows = branches.map((branch, index) => {
+    const y = 739 + index * 54;
+    label(noteSets[4], 728, y + 2, `支路 ${index + 1}`, { class: 'tag', fill: branchColors[index] });
+    const order = ['U1', ...branch.map(coil => `C${coil.id}${coil.direction < 0 ? '⁻' : ''}`), 'U2'];
+    return order.map((value, nodeIndex) => {
+      const node = el(noteSets[4], 'g');
+      const x = 817 + nodeIndex * 110;
+      if (nodeIndex) center(node, x - 18, y + 1, '→', { class: 'label' });
+      chip(node, x, y - 22, 73, value, branchTints[index], branchColors[index], 21);
+      return node;
+    });
+  });
+  label(noteSets[4], 1487, 698, '⁻ 表示从 F 端到 S 端', { class: 'small', 'text-anchor': 'end' });
+
+  techLabel(noteSets[5], '基波电势校核');
+  label(noteSets[5], 728, 744, '槽电角度  α = 360° × p / Z = 30°', { class: 'panel-title' });
+  label(noteSets[5], 728, 783, '12α = 360°，两支路基波电势相量重合', { class: 'caption' });
+  for (let index = 0; index < 2; index++) {
+    const y = 731 + 51 * index;
+    const color = branchColors[index];
+    center(noteSets[5], 1359, y + 6, `Ė${index + 1}`, { class: 'mono num', fill: color });
+    line(noteSets[5], `M1391 ${y}h91m-10-7 10 7-10 7`, color, 3.5);
+  }
+
+  const timeline = scenes.map((scene, index) => {
+    const start = 64 + 1472 * scene.at / duration;
+    const end = 64 + 1472 * (scenes[index + 1]?.at ?? duration) / duration;
+    box(byId('timeline'), start, 839, end - start - 5, 5, '#d2ddeb', { rx: 2.5 });
+    const bar = box(byId('timeline'), start, 839, 0, 5, '#355979', { rx: 2.5 });
+    const text = label(byId('timeline'), start, 874, scene.name, { class: 'small' });
+    return { bar, text, width: end - start - 5 };
+  });
+  const stepCounter = label(byId('timeline'), 1536, 874, '', { class: 'mono small', 'text-anchor': 'end' });
+
+  let activeScene = -1;
+  function render(seconds) {
+    const time = Math.min(duration, Math.max(0, seconds));
+    const index = scenes.findLastIndex(scene => time >= scene.at);
+    const scene = scenes[index];
+    if (index !== activeScene) {
+      byId('step-label').textContent = `步骤 ${index + 1} / ${scene.name}`;
+      byId('caption-title').textContent = scene.title;
+      byId('caption-first').textContent = scene.first;
+      byId('caption-second').textContent = scene.second;
+      noteSets.forEach((node, noteIndex) => opacity(node, noteIndex === index ? 1 : 0));
+      timeline.forEach(({ text }, step) => text.setAttribute('font-weight', step === index ? 700 : 400));
+      stepCounter.textContent = `${String(index + 1).padStart(2, '0')} / 06`;
+      activeScene = index;
+    }
+    timeline.forEach(({ bar, width }, step) => {
+      const until = scenes[step + 1]?.at ?? duration;
+      bar.setAttribute('width', (width * clamp((time - scenes[step].at) / (until - scenes[step].at))).toFixed(2));
+    });
+    slotHighlights.forEach(({ node, group }) => opacity(node, reveal(time, .55 + (group - 1) * .86)));
+    coilGeometry.forEach(({ shape, arrows }, coilIndex) => {
+      const at = [6.5, 8.4, 9.7, 10.45, 11.2, 11.95, 12.7, 13.45][coilIndex];
+      opacity(shape, reveal(time, at));
+      opacity(arrows, reveal(time, 28.6 + .22 * coilIndex));
+    });
+    opacity(span, reveal(time, 6.5) * (1 - reveal(time, 10.25, .6)));
+    opacity(firstSeriesEnds, reveal(time, 15.7) * (1 - reveal(time, 23.45)));
+    opacity(coilSeam, reveal(time, 13.45));
+    internalWires.forEach((node, group) => opacity(node, reveal(time, 15.7 + 1.35 * group)));
+    reversedWires.forEach((node, branch) => opacity(node, reveal(time, 25.0 + 1.7 * branch)));
+    opacity(wireSeam, reveal(time, 26.7));
+    opacity(terminals, reveal(time, 34.5, 1.0));
+    branchRows.forEach((row, branch) => row.forEach((node, step) => opacity(node, reveal(time, 34.2 + .35 * branch + .08 * step))));
+    tracers.forEach(({ track, length, marker }, branch) => {
+      const elapsed = time - (35.1 + 4.35 * branch);
+      opacity(marker, reveal(elapsed, 0, .2) * (1 - reveal(elapsed, 4.05, .2)));
+      if (elapsed >= 0 && elapsed <= 4.25) {
+        const point = track.getPointAtLength(length * clamp(elapsed / 4.05));
+        marker.setAttribute('cx', point.x.toFixed(2));
+        marker.setAttribute('cy', point.y.toFixed(2));
+      }
+    });
+    return time;
+  }
+
+  const query = new URLSearchParams(location.search);
+  const seek = byId('seek');
+  const toggle = byId('toggle');
+  let position = 0;
+  let started = 0;
+  let animation = 0;
+  function update(seconds) {
+    position = render(seconds);
+    seek.value = position;
+    byId('clock').value = `00:${String(Math.floor(position)).padStart(2, '0')} / 00:52`;
+  }
+  function pause() {
+    cancelAnimationFrame(animation);
+    animation = 0;
+    toggle.textContent = '播放';
+  }
+  function tick(now) {
+    update((now - started) / 1000);
+    if (position >= duration) pause();
+    else animation = requestAnimationFrame(tick);
+  }
+  toggle.addEventListener('click', () => {
+    if (animation) return pause();
+    if (position === duration) update(0);
+    started = performance.now() - position * 1000;
+    toggle.textContent = '暂停';
+    animation = requestAnimationFrame(tick);
+  });
+  seek.addEventListener('input', () => {
+    pause();
+    update(Number(seek.value));
+  });
+  byId('previous').addEventListener('click', () => {
+    pause();
+    update(scenes.findLast(scene => scene.at < position - .25)?.at ?? 0);
+  });
+  byId('next').addEventListener('click', () => {
+    pause();
+    update(scenes.find(scene => scene.at > position + .01)?.at ?? duration);
+  });
+
+  // 时间参数与播放控件共用同一绘制函数，便于逐帧导出和检查。
+  window.winding = { Z, p, pitch, parallel, polePitch, slotAngle, slotsPerPolePhase, coils, groups, branches, scenes, duration, render };
+  if (query.has('frame') || query.has('capture')) document.body.classList.add('capture');
+  const initial = Number(query.get('frame'));
+  update(Number.isFinite(initial) ? initial : 0);
+</script>
+</body>
+</html>
